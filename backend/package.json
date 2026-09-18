@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "tsx watch src/server.ts",
     "test": "vitest run",
     "postinstall": "prisma skills sync || exit 0"
   },
