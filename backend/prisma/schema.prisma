@@ -1,0 +1,182 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String   @unique
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  members   Member[]
+}
+
+model Group {
+  id            String     @id @default(uuid())
+  name          String
+  amountKobo    BigInt
+  frequency     String
+  startDate     DateTime
+  status        String     @default("draft")
+  feePolicy     String
+  feeValue      Int        @default(0)
+  defaultPolicy String
+  organiserId   String
+  drawSeed      String?
+  drawAlgo      String?
+  members       Member[]
+  positions     Position[]
+  cycles        Cycle[]
+  shareLinks    ShareLink[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime   @default(now())
+}
+
+model Member {
+  id        String     @id @default(uuid())
+  groupId   String
+  userId    String?
+  name      String
+  phone     String
+  status    String     @default("active")
+  joinedAt  DateTime   @default(now())
+  exitedAt  DateTime?
+  group     Group      @relation(fields: [groupId], references: [id])
+  user      User?      @relation(fields: [userId], references: [id])
+  positions Position[]
+  payments  Payment[]
+}
+
+model Position {
+  id              String       @id @default(uuid())
+  groupId         String
+  ordinal         Int
+  currentHolderId String
+  status          String       @default("active")
+  group           Group        @relation(fields: [groupId], references: [id])
+  holder          Member       @relation(fields: [currentHolderId], references: [id])
+  obligations     Obligation[]
+  transfers       PositionTransfer[]
+  payouts         Payout[]
+
+  @@unique([groupId, ordinal])
+}
+
+model PositionTransfer {
+  id             String   @id @default(uuid())
+  positionId     String
+  fromMemberId   String
+  toMemberId     String
+  effectiveCycle Int
+  reason         String
+  actor          String
+  createdAt      DateTime @default(now())
+  position       Position @relation(fields: [positionId], references: [id])
+}
+
+model Cycle {
+  id                  String       @id @default(uuid())
+  groupId             String
+  ordinal             Int
+  dueDate             DateTime
+  receivingPositionId String
+  status              String       @default("pending")
+  potExpectedKobo     BigInt
+  potCollectedKobo    BigInt       @default(0)
+  shortfallKobo       BigInt       @default(0)
+  group               Group        @relation(fields: [groupId], references: [id])
+  obligations         Obligation[]
+  payouts             Payout[]
+
+  @@unique([groupId, ordinal])
+}
+
+model Obligation {
+  id          String    @id @default(uuid())
+  cycleId     String
+  positionId  String
+  dueKobo     BigInt
+  paidKobo    BigInt    @default(0)
+  balanceKobo BigInt
+  status      String    @default("unpaid")
+  cycle       Cycle     @relation(fields: [cycleId], references: [id])
+  position    Position  @relation(fields: [positionId], references: [id])
+  payments    Payment[]
+
+  @@unique([cycleId, positionId])
+}
+
+model Payment {
+  id           String     @id @default(uuid())
+  obligationId String
+  memberId     String
+  amountKobo   BigInt
+  paidAt       DateTime
+  method       String
+  reference    String?
+  proofUrl     String?
+  status       String     @default("pending")
+  recordedBy   String
+  confirmedBy  String?
+  reversesId   String?
+  obligation   Obligation @relation(fields: [obligationId], references: [id])
+  member       Member     @relation(fields: [memberId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Payout {
+  id             String    @id @default(uuid())
+  cycleId        String
+  positionId     String
+  gross          BigInt
+  deductionTotal BigInt
+  net            BigInt
+  status         String    @default("disbursed")
+  disbursedAt    DateTime?
+  method         String?
+  reference      String?
+  cycle          Cycle     @relation(fields: [cycleId], references: [id])
+  position       Position  @relation(fields: [positionId], references: [id])
+  deductions     PayoutDeduction[]
+}
+
+model PayoutDeduction {
+  id          String @id @default(uuid())
+  payoutId    String
+  type        String
+  description String?
+  amountKobo  BigInt
+  payout      Payout @relation(fields: [payoutId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  groupId   String
+  actor     String
+  action    String
+  entity    String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+  group     Group    @relation(fields: [groupId], references: [id])
+}
+
+model ShareLink {
+  id        String    @id @default(uuid())
+  groupId   String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  group     Group     @relation(fields: [groupId], references: [id])
+}
