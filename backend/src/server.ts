@@ -4,6 +4,9 @@ import express from "express";
 import cors from "cors";
 import { clerkAuth } from "./middleware/auth";
 import { groupsRouter } from "./routes/groups";
+import { activationRouter } from "./routes/activation";
+import { paymentsRouter } from "./routes/payments";
+
 
 const app = express();
 app.use(clerkMiddleware());
@@ -11,6 +14,8 @@ app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 app.use(clerkAuth); // attaches auth state; requireAuth (per-route) enforces it
 app.use("/api/groups", groupsRouter);
+app.use("/api/groups", activationRouter);
+app.use("/api/obligations", paymentsRouter);
 
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error(err);
